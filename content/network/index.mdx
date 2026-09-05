@@ -13,10 +13,10 @@ icon: Wifi
 校园网认证页面是：
 
 ```text
-nap.cug.edu.cn
+https://nap.cug.edu.cn
 ```
 
-连接校园网 Wi-Fi 或插入校园网网线后，浏览器通常会自动跳转到认证页面。如果没有跳转，手动访问 `nap.cug.edu.cn`。
+连接校园网 Wi-Fi 或插入校园网网线后，浏览器通常会自动跳转到认证页面。如果没有跳转，手动访问 [校园网认证入口](https://nap.cug.edu.cn)。
 
 ## 推荐处理顺序
 
@@ -32,7 +32,7 @@ nap.cug.edu.cn
 - TUN 模式、透明代理、虚拟网卡代理
 - 代理工具接管 DNS 的功能
 
-关闭后重新连接校园网，再访问 `nap.cug.edu.cn` 或重新运行 CampusLink。
+关闭后重新连接校园网，再访问 `https://nap.cug.edu.cn` 或重新运行 CampusLink。CampusLink 访问默认校园网域名时会跳过 HTTP 代理环境变量，但 VPN/TUN、透明代理和 DNS 接管仍可能影响连接。
 
 ### 2. 检查是否拿到 IP
 
@@ -85,132 +85,126 @@ nmcli networking on
 | macOS | 系统设置 → 网络 → 当前网络 → 详细信息 → DNS |
 | Linux | `resolvectl status` |
 
-如果暂时不能改 DNS，可以临时设置 hosts。认证网关 IP 通常是 `192.168.167.115` 和 `192.168.167.116`，任选一个可达地址即可：
+可用下面的命令检查域名解析：
 
 ```text
-192.168.167.115 nap.cug.edu.cn
+nslookup nap.cug.edu.cn
 ```
 
-hosts 文件位置：
-
-| 系统 | hosts 路径 |
-|------|------------|
-| Windows | `C:\Windows\System32\drivers\etc\hosts` |
-| macOS | `/etc/hosts` |
-| Linux | `/etc/hosts` |
-
-hosts 只适合临时排障。长期使用建议恢复 DHCP 默认 DNS，或使用 CampusLink 的备用网关参数。
+当前 CampusLink 用 `192.168.167.72` 作为 DNS 检查的预期地址。解析结果不包含它时，程序会提示实际地址，仍通过域名连接并校验 HTTPS 证书；DNS 查询失败或没有返回地址时会报错，不会回退到固定 IP。该地址仅用于排障提示，学校后续可能调整网关，请结合实际解析和浏览器访问结果判断，不要将它当作必须写入 hosts 的配置。
 
 ## CampusLink 自动登录
 
-[cugcs632/CampusLink](https://github.com/cugcs632/CampusLink) 是校园网 SRun 自动登录工具，当前默认面向 `nap.cug.edu.cn`。它是 Go 编写的单文件二进制程序，不需要 Python、Node.js、包管理器或虚拟环境。
+[cugcs632/CampusLink](https://github.com/cugcs632/CampusLink) 是校园网自动认证工具，通过校园网 Portal API 认证，默认连接 `https://nap.cug.edu.cn`。它是 Go 编写的单文件二进制程序，不需要 Python、Node.js、包管理器或虚拟环境。
 
-适合这些场景：
-
-- 每次开机、睡眠恢复或 Wi-Fi 重连后不想手动打开认证页
-- 认证页受 DNS 或浏览器代理影响，经常打不开
-- 希望定时重试，覆盖网关掉线或切换网络后的重新认证
+自动连接的配置方式和运行行为请参阅 [CampusLink 最新使用说明](https://github.com/cugcs632/CampusLink#readme)。
 
 ### 下载
 
-从 [CampusLink Releases](https://github.com/cugcs632/CampusLink/releases/latest) 下载对应系统的压缩包。
+从 [CampusLink Releases](https://github.com/cugcs632/CampusLink/releases/latest) 下载对应系统和处理器架构的压缩包并解压。
 
 | 系统 | 下载包 | 程序文件 |
 |------|--------|----------|
 | Windows x64 | `campuslink-windows-amd64.zip` | `campuslink.exe` |
+| Windows ARM64 | `campuslink-windows-arm64.zip` | `campuslink.exe` |
 | macOS Apple Silicon | `campuslink-darwin-arm64.tar.gz` | `campuslink` |
+| macOS Intel | `campuslink-darwin-amd64.tar.gz` | `campuslink` |
 | Linux x64 | `campuslink-linux-amd64.tar.gz` | `campuslink` |
+| Linux ARM64 | `campuslink-linux-arm64.tar.gz` | `campuslink` |
 
-推荐安装位置：
+### 首次配置
 
-| 系统 | 路径 |
+在解压目录打开终端，启动配置向导。
+
+Windows PowerShell：
+
+```powershell
+.\campuslink.exe setup
+```
+
+macOS/Linux：
+
+```bash
+./campuslink setup
+```
+
+按提示输入校园网账号和密码，密码输入时不回显。向导检查网关、尝试认证并保存配置。如果设备已经在线，程序不会重新提交密码，因此本次配置不能确认新输入的密码是否正确，需要在设备离线时再验证登录。
+
+默认配置目录如下：
+
+| 系统 | 配置目录 |
+|------|----------|
+| Windows | `%APPDATA%\CampusLink` |
+| macOS | `~/Library/Application Support/CampusLink` |
+| Linux | `$XDG_CONFIG_HOME/CampusLink`，未设置时为 `~/.config/CampusLink` |
+
+下文用 `campuslink` 表示程序命令：在解压目录中，Windows PowerShell 用 `.\campuslink.exe`，macOS/Linux 用 `./campuslink`；也可以使用程序的完整路径，或将程序所在目录加入 `PATH`。
+
+### 保存账号与密码
+
+长期使用请通过 `campuslink setup` 保存或更新账号密码。默认将密码交给系统凭据服务：Windows 凭据管理器、macOS 登录钥匙串或 Linux Secret Service。`config.json` 保存账号和连接参数，不包含密码。
+
+Linux Secret Service 需要可用的用户 D-Bus 会话和已解锁的凭据服务。凭据服务不可用时程序会报错，不会自动改成明文存储。无桌面 Linux 等场景可明确选择文件存储：
+
+```bash
+campuslink setup --storage file
+```
+
+此模式将密码明文保存在配置目录内的独立 `password` 文件中。Unix 配置目录权限为 `0700`、文件为 `0600`；Windows 使用仅限当前用户和 SYSTEM 的目录 ACL。系统管理员仍可能访问这些数据。
+
+### 常用命令
+
+| 命令 | 用途 |
 |------|------|
-| Windows | `%LOCALAPPDATA%\CampusLink\campuslink.exe` |
-| macOS | `$HOME/.local/bin/campuslink` |
-| Linux | `$HOME/.local/bin/campuslink` |
+| `campuslink setup` | 配置或更新账号密码 |
+| `campuslink login` | 立即登录；省略子命令也执行登录 |
+| `campuslink status` | 查看在线状态 |
+| `campuslink doctor` | 检查配置、凭据可读性、DNS 和 HTTPS 接口 |
+| `campuslink logs` | 查看最近运行记录 |
+| `campuslink --version` | 查看版本与 commit |
 
-### 首次测试
+`login` 成功时输出 `login ok`，失败返回非零退出码。`status` 和 `doctor` 不提交密码；`doctor` 会读取保存的凭据以检查可用性，但不输出密码。可使用 `status --json`、`doctor --json` 获取结构化诊断。
 
-先手动验证账号、密码和认证参数。
+### 临时参数与环境变量
 
-Windows PowerShell：
+手动 `login` 的配置优先级为：命令行参数 → 非空 `CAMPUSLINK_*` 环境变量 → 保存的配置及关联密码 → 内置默认值。自动读取保存的密码要求账号和网关与保存配置匹配。`setup` 不从登录用的环境变量导入凭据；程序也不会自动读取 `.env` 文件。
 
-```powershell
-& "$env:LOCALAPPDATA\CampusLink\campuslink.exe" -u "学号" -p "密码"
-```
-
-macOS/Linux：
-
-```bash
-"$HOME/.local/bin/campuslink" -u "学号" -p "密码"
-```
-
-成功时会显示 `login ok`。如果要查看网关返回的原始信息，加 `--json`：
-
-```bash
-"$HOME/.local/bin/campuslink" -u "学号" -p "密码" --json
-```
-
-### 保存账号
-
-为了避免把密码留在命令历史里，可以用环境变量保存账号。
-
-Windows PowerShell：
-
-```powershell
-[Environment]::SetEnvironmentVariable("SRUN_USERNAME", "学号", "User")
-[Environment]::SetEnvironmentVariable("SRUN_PASSWORD", "密码", "User")
-```
-
-关闭并重新打开 PowerShell 后测试：
-
-```powershell
-& "$env:LOCALAPPDATA\CampusLink\campuslink.exe"
-```
-
-macOS/Linux：
-
-```bash
-export SRUN_USERNAME="学号"
-export SRUN_PASSWORD="密码"
-"$HOME/.local/bin/campuslink"
-```
-
-长期自动运行时，请按 CampusLink README 使用 Windows 任务计划程序、Linux systemd 用户 timer 或 macOS LaunchAgent。推荐策略是登录或开机后执行一次，并每 5 分钟重试一次；CampusLink 会把“已经在线”视为成功，因此重复执行是安全的。
-
-### 常用参数
-
-| 环境变量 | 命令行参数 | 用途 |
+| 环境变量 | `login` 参数 | 用途 |
 |----------|------------|------|
-| `SRUN_USERNAME` | `-u`, `--username` | 校园网账号 |
-| `SRUN_PASSWORD` | `-p`, `--password` | 校园网密码 |
-| `SRUN_IP` | `--ip` | 自动识别客户端 IP 失败时手动指定 |
-| `SRUN_HOST` | `--host` | 指定认证网关，默认 `nap.cug.edu.cn` |
-| `SRUN_AC_ID` | `--ac-id` | 接入点 ID，默认 `1` |
-| `SRUN_TIMEOUT` | `--timeout` | HTTP 超时时间，单位为秒 |
+| `CAMPUSLINK_USERNAME` | `-u`, `--username` | 临时指定校园网账号 |
+| `CAMPUSLINK_PASSWORD` | `-p`, `--password` | 临时指定密码；日常使用优先通过 `setup` 保存 |
+| 无 | `--password-stdin` | 从标准输入第一行读取密码 |
+| `CAMPUSLINK_BASE_URL` | `--base-url` | 网关 URL，默认 `https://nap.cug.edu.cn` |
+| `CAMPUSLINK_IP` | `--ip` | 客户端 IP，默认自动发现 |
+| `CAMPUSLINK_NAS_ID` | `--nas-id` | NAS ID，默认自动发现 |
+| `CAMPUSLINK_ISP` | `--isp` | 可选运营商 ID，默认不发送 |
+| `CAMPUSLINK_TIMEOUT` | `--timeout` | 超时秒数，默认 `8`，范围 1–3600 |
 
-如果 DNS 问题导致默认网关域名不可访问，可以临时指定备用网关：
+需要从密码管理器管道传入密码时，可使用 `--password-stdin`；普通终端中该模式的输入可能回显，交互使用应优先选择 `setup`。它不能与解析后非空的命令行密码或 `CAMPUSLINK_PASSWORD` 同时使用，并且会跳过保存的密码。
 
-```bash
-"$HOME/.local/bin/campuslink" --host 192.168.167.115
-"$HOME/.local/bin/campuslink" --host 192.168.167.116
-```
+配置目录可通过 `CAMPUSLINK_CONFIG_DIR` 或放在子命令**之前**的 `--config-dir` 指定，例如 `campuslink --config-dir "/path/to/CampusLink" setup`。命令行目录优先。
 
-Windows PowerShell：
-
-```powershell
-& "$env:LOCALAPPDATA\CampusLink\campuslink.exe" --host 192.168.167.115
-& "$env:LOCALAPPDATA\CampusLink\campuslink.exe" --host 192.168.167.116
-```
+默认网关应保留 HTTPS 域名，DNS 故障应先修复系统解析。显式选择 HTTP 自定义网关会失去 HTTPS 传输保护。
 
 ## CampusLink 常见报错
 
-| 报错 | 优先处理 |
+先运行 `campuslink doctor` 和 `campuslink logs`，再根据结果处理：
+
+| 报错或现象 | 优先处理 |
 |------|----------|
-| `cannot find client ip from portal page; pass --ip` | 重新从 DHCP 获取 IP；仍失败时用 `--ip` 或 `SRUN_IP` 手动指定客户端 IP |
-| `portal connection failed` | 检查是否连接校园网、代理是否关闭、DNS 是否能解析 `nap.cug.edu.cn`；必要时使用 `--host` 指定备用网关 |
-| `login failed` | 加 `--json` 查看网关原始错误，再确认账号、密码、`ac_id` 和网关地址 |
+| 未保存配置或提示运行 `setup` | 运行 `campuslink setup` 保存账号和密码 |
+| 凭据服务不可访问 | 解锁系统凭据服务，确认使用配置时的同一系统用户；无桌面环境可明确选择 `setup --storage file` |
+| `cannot resolve nap.cug.edu.cn` / `DNS returned no addresses` | 检查校园网连接、系统 DNS、hosts、VPN/TUN 和 Fake-IP DNS；恢复自动 DNS 后重试 |
+| 解析结果不包含 `192.168.167.72` 的 warning | 核对提示中的实际地址、DNS 和 VPN 设置，也可能是网关变化；程序仍通过域名和 HTTPS 连接 |
+| `portal request ... failed` / HTTPS 证书错误 | 检查网络和证书，确认浏览器可打开 `https://nap.cug.edu.cn` |
+| `cannot find valid client IP from portal redirect; pass --ip` | 先确认 DHCP 地址正常；必要时从浏览器认证页重定向地址读取 `ip`，通过 `setup --ip ...` 保存 |
+| `cannot find valid NAS ID from portal redirect; pass --nas-id` | 从浏览器认证页重定向地址读取 `nasId`，通过 `setup --nas-id ...` 保存 |
+| `login failed` | 在浏览器确认账号密码，处理验证码或强制改密；修改密码后重新 `setup`，再运行 `login` |
+
+同时指定 `--ip` 和 `--nas-id` 时会跳过重定向发现。固定保存这两个值后，更换网络可能需要清空或更新。需查看登录原始响应时可运行 `campuslink login --json`，其中可能包含账号或会话信息，分享前应脱敏。
 
 ## 凭据安全
 
-CampusLink 的环境变量、Linux `EnvironmentFile`、macOS LaunchAgent plist 和 Windows 用户级环境变量都会在本机保存密码。请确保本机系统账号有登录密码，不要把包含校园网账号密码的配置文件提交到 Git 或发给他人。
+优先使用 `setup` 的系统凭据存储。
+
+不要把密码、明文 `password` 文件或含账号与会话信息的原始 JSON 响应提交到 Git 或发给他人。直接在命令行输入密码或设置密码环境变量仍可能留下 shell 历史。`activity.log` 只保存概括状态和 DNS 提示，不记录密码或原始认证响应。
